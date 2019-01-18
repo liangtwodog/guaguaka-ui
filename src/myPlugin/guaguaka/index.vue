@@ -1,9 +1,10 @@
 <template>
   <div>
-    <div class="guaguaka" :style="{width: guaguaka_width + 'px', height: guaguaka_height + 'px'}">
+    <div class="guaguaka" :style="{width: guaguaka_width, height: guaguaka_height}">
       <img :src="curtainImg" class="loadImg prizeCurtainImg" alt="prizeCurtainImg"/>
       <img :src="prizeImg" class="loadImg prizeImg" alt="prize" v-show="scratchPrizeShow"/>
-      <div class="touchSpot" :style="{width: touchSpotSize + 'px', height: touchSpotSize + 'px', backgroundImage: 'url(' + touchSpotImg + ')'}" v-show="touchSpotShow && ismousedown && isTouch"></div>
+      <div class="touchSpot" :style="{width: touchSpotImgWidth, height: touchSpotImgHeight, backgroundImage: 'url(' + touchSpotImg + ')'}" v-show="touchSpotShow && ismousedown && isTouch"></div>
+      <div class="touchSpotSizeDiv" :style="{width: touchSpotSize, height: touchSpotSize}" v-show="false"></div>
       <canvas class="canvas"></canvas>
     </div>
   </div>
@@ -11,8 +12,6 @@
 
 <script>
 import prizeCurtain from './img/prizeCurtain.png'
-import prizeImg from './img/prize.png'
-import touchSpotImg from './img/touchSpotImg.png'
 import $ from 'jquery'
 export default {
   name:'guaguaka-ui',
@@ -25,6 +24,9 @@ export default {
       scratchPrizeShow: false, // 刮刮卡奖品层是否显示
       dotPosition: null, // 起始点的位置
       isSuccess: true, // 是否开奖了
+      touchSpotPositionY: '', // 触点Y轴的位置
+      touchSpotPositionX: '', // 触点X轴的位置
+      touchSpotSizeNb: '', // 涂抹的大小值
       itemDivId: {
         guaguaka: '',
         prizeCurtainImg: '',
@@ -34,14 +36,17 @@ export default {
       },
       id: null, // 刮刮卡id
       touchSpotShow: false, // 刮片是否显示
-      touchSpotImg: touchSpotImg, // 刮片背景图
+      touchSpotImg: 'https://i.loli.net/2019/01/17/5c3fef16bbd5a.png', // 刮片背景图
       isTouch: false, // 是否可以刮动,
       curtainImg: prizeCurtain, // 刮层图片
-      prizeImg: prizeImg, // 奖品图片
+      prizeImg: 'https://i.loli.net/2019/01/17/5c3fef16bc433.png', // 奖品图片
       visibleArea: 50, // 刮开率,单位%
-      touchSpotSize: 25, // 涂抹的大小，单位px
-      guaguaka_width: '246', // 刮刮卡的宽度,单位px
-      guaguaka_height: '132' // 刮刮卡的高度，单位px
+      touchSpotSize: '20px', // 涂抹的大小
+      guaguaka_width: '246', // 刮刮卡的宽度
+      guaguaka_height: '132', // 刮刮卡的高度
+      touchSpotImgWidth: '20px', // 刮刮片的宽度,单位px
+      touchSpotImgHeight: '20px', // 刮刮片的宽度,单位px
+      touchSpotPosition: '0.5 0.5' // 刮片触点位置
     }
   },
   props: {
@@ -74,10 +79,15 @@ export default {
           this.touchSpotSize = guaguakaInfo.touchSpotSize ? guaguakaInfo.touchSpotSize : this.touchSpotSize
           this.guaguaka_width = guaguakaInfo.width ? guaguakaInfo.width : this.guaguaka_width
           this.guaguaka_height = guaguakaInfo.height ? guaguakaInfo.height : this.guaguaka_height
+          this.touchSpotImgWidth = guaguakaInfo.touchSpotImgWidth ? guaguakaInfo.touchSpotImgWidth : this.touchSpotImgWidth
+          this.touchSpotImgHeight = guaguakaInfo.touchSpotImgHeight ? guaguakaInfo.touchSpotImgHeight : this.touchSpotImgHeight
+          this.touchSpotPosition = guaguakaInfo.touchSpotPosition ? guaguakaInfo.touchSpotPosition : this.touchSpotPosition
           this.isTouch = guaguakaInfo.isTouch ? guaguakaInfo.isTouch : this.isTouch
           this.id = guaguakaInfo.id ? guaguakaInfo.id : this.id
         }
       }
+      this.touchSpotPositionX = this.touchSpotPosition.split(' ')[0]
+      this.touchSpotPositionY = this.touchSpotPosition.split(' ')[1]
       // 根据传入的刮刮卡div的id设置刮刮卡的组件各div的id
       $('#' + this.id).find('.guaguaka').attr('id', this.id + '_guaguaka')
       $('#' + this.id).find('.prizeCurtainImg').attr('id', this.id + '_prizeCurtainImg')
@@ -115,18 +125,14 @@ export default {
       this.prizeCurtain.height = this.prizeCurtain.clientHeight
       this.ctx = this.prizeCurtain.getContext('2d')
       // PC端的处理
-      this.prizeCurtain.addEventListener('mousemove', this.canvasEventMove, false)
-      this.prizeCurtain.addEventListener('mousedown', this.canvasEventDown, false)
+      this.prizeCurtain.addEventListener('mousemove', this.canvasEventMove, true)
+      this.prizeCurtain.addEventListener('mousedown', this.canvasEventDown, true)
       // 移动端的处理
       this.prizeCurtain.addEventListener('touchstart', this.canvasEventDown, false)
       this.prizeCurtain.addEventListener('touchmove', this.canvasEventMove, false)
-      if (this.touchSpotShow) {
-        this.prizeCurtain.addEventListener('touchend', this.canvasEventUp, false)
-        document.getElementById(this.itemDivId.touchSpotId).addEventListener('mouseup', this.canvasEventUp, false)
-      } else {
-        this.prizeCurtain.addEventListener('mouseup', this.canvasEventUp, false)
-        this.prizeCurtain.addEventListener('touchend', this.canvasEventUp, false)
-      }
+
+      this.prizeCurtain.addEventListener('touchend', this.canvasEventUp, false)
+      document.addEventListener("mouseup", this.canvasEventUp, true)
       this.ctx.globalCompositeOperation = 'source-over'
       this.setPrizeCurtain()
     },
@@ -138,6 +144,7 @@ export default {
       this.ctx.globalCompositeOperation = 'destination-out'
       this.isSuccess = false
       this.scratchPrizeShow = true
+      this.$emit('hideLoading', this.id)
     },
     canvasEventUp(e) {
       e.preventDefault()
@@ -175,8 +182,8 @@ export default {
         const y = (e.clientY + scrollTop || e.pageY) - oY || 0
         // 设置刮片的位置
         $('#' + this.itemDivId.touchSpotId).css({
-          left: x - $('#' + this.itemDivId.touchSpotId).width() / 2,
-          top: y - $('#' + this.itemDivId.touchSpotId).height() / 2
+          left: x - $('#' + this.itemDivId.touchSpotId).width() * this.touchSpotPositionX,
+          top: y - $('#' + this.itemDivId.touchSpotId).height() * this.touchSpotPositionY
         })
         if (this.dotPosition === null) {
           this.dotPosition = {
@@ -186,7 +193,7 @@ export default {
         } else {
           // 根据刮片起始点和当前的点来画出来是透明的线
           this.ctx.beginPath()
-          this.ctx.lineWidth = this.touchSpotSize
+          this.ctx.lineWidth = this.touchSpotSizeNb
           this.ctx.lineCap = 'round'
           this.ctx.lineJoin = 'round'
           this.ctx.moveTo(this.dotPosition.x, this.dotPosition.y)
@@ -220,15 +227,26 @@ export default {
         const y = (e.clientY + scrollTop || e.pageY) - oY || 0
         // 设置刮片的位置
         $('#' + this.itemDivId.touchSpotId).css({
-          left: x - $('#' + this.itemDivId.touchSpotId).width() / 2,
-          top: y - $('#' + this.itemDivId.touchSpotId).height() / 2
+          left: x - $('#' + this.itemDivId.touchSpotId).width() * this.touchSpotPositionX,
+          top: y - $('#' + this.itemDivId.touchSpotId).height() * this.touchSpotPositionY
         })
+        this.touchSpotSizeNb = $('#' + this.id).find('.touchSpotSizeDiv').width()
+        this.dotPosition = {
+          x: x,
+          y: y
+        }
         this.ismousedown = true
       }
     },
     setInfo(guaguakaInfo) { // 设置奖品图片
       const that = this
       that.touchSpotImg = guaguakaInfo.touchSpotImg ? guaguakaInfo.touchSpotImg : that.touchSpotImg
+      that.touchSpotImgWidth = guaguakaInfo.touchSpotImgWidth ? guaguakaInfo.touchSpotImgWidth : that.touchSpotImgWidth
+      that.touchSpotImgHeight = guaguakaInfo.touchSpotImgHeight ? guaguakaInfo.touchSpotImgHeight : that.touchSpotImgHeight
+      that.touchSpotPosition = guaguakaInfo.touchSpotPosition ? guaguakaInfo.touchSpotPosition : that.touchSpotPosition
+      that.touchSpotSize = guaguakaInfo.touchSpotSize ? guaguakaInfo.touchSpotSize : that.touchSpotSize
+      that.touchSpotPositionX = that.touchSpotPosition.split(' ')[0]
+      that.touchSpotPositionY = that.touchSpotPosition.split(' ')[1]
       if (guaguakaInfo.isTouch) {
         that.isTouch = true
       } else {
