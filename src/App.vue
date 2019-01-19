@@ -9,7 +9,7 @@
       <a style="text-align: center;margin-right: 20px;font-size: 16px" @click="changeTouchSpotImg">更换刮片</a>
       <a style="font-size: 16px;text-align: center" @click="changeImg">更换图片</a>
     </p>
-    <guaguaka-ui ref="guaguaka" :guaguakaConfig="guaguakaConfig" id="guaguakaDiv" @success="guaguakaSuccess" @hideLoading="hideLoading"></guaguaka-ui>
+    <guaguaka-ui ref="guaguaka" :guaguakaConfig="guaguakaConfig" id="guaguakaDiv" @getVisibleArea="getVisibleArea" @success="guaguakaSuccess" @hideLoading="hideLoading"></guaguaka-ui>
     <p style="color: cornflowerblue">没刮卡的刮刮卡</p>
     <p><a style="font-size: 16px;text-align: center" @click="changeImg1">更换图片</a></p>
     <guaguaka-ui ref="guaguaka1" :guaguakaConfig="guaguakaConfig1" id="guaguakaDiv1" @success="guaguakaSuccess"></guaguaka-ui>
@@ -36,6 +36,7 @@ export default {
         touchSpotSize: '15px',
         touchSpotImgWidth: '15px',
         touchSpotImgHeight: '25px',
+        curtainHide: true,
         touchSpotPosition: '0.2 0.1',
         prizeImg: 'http://t2.hddhhn.com/uploads/tu/201610/198/scx30045vxd.jpg'
       },
@@ -84,6 +85,9 @@ export default {
     },
     guaguakaSuccess (data) {
       alert(data + '刮卡成功')
+    },
+    getVisibleArea (data) {
+      console.log(data)
     },
     hideLoading (data) {
       console.log(data + '加载成功')

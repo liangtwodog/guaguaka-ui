@@ -5,7 +5,7 @@
       <img :src="prizeImg" class="loadImg prizeImg" alt="prize" v-show="scratchPrizeShow"/>
       <div class="touchSpot" :style="{width: touchSpotImgWidth, height: touchSpotImgHeight, backgroundImage: 'url(' + touchSpotImg + ')'}" v-show="touchSpotShow && ismousedown && isTouch"></div>
       <div class="touchSpotSizeDiv" :style="{width: touchSpotSize, height: touchSpotSize}" v-show="false"></div>
-      <canvas class="canvas"></canvas>
+      <canvas class="canvas" v-show="canvasShow"></canvas>
     </div>
   </div>
 </template>
@@ -27,6 +27,7 @@ export default {
       touchSpotPositionY: '', // 触点Y轴的位置
       touchSpotPositionX: '', // 触点X轴的位置
       touchSpotSizeNb: '', // 涂抹的大小值
+      canvasShow: true, // 当超过刮开率刮层消失
       itemDivId: {
         guaguaka: '',
         prizeCurtainImg: '',
@@ -38,12 +39,13 @@ export default {
       touchSpotShow: false, // 刮片是否显示
       touchSpotImg: 'https://i.loli.net/2019/01/17/5c3fef16bbd5a.png', // 刮片背景图
       isTouch: false, // 是否可以刮动,
+      curtainHide: true, // 当超过刮开率刮层消失
       curtainImg: prizeCurtain, // 刮层图片
       prizeImg: 'https://i.loli.net/2019/01/17/5c3fef16bc433.png', // 奖品图片
       visibleArea: 50, // 刮开率,单位%
       touchSpotSize: '20px', // 涂抹的大小
-      guaguaka_width: '246', // 刮刮卡的宽度
-      guaguaka_height: '132', // 刮刮卡的高度
+      guaguaka_width: '246px', // 刮刮卡的宽度
+      guaguaka_height: '132px', // 刮刮卡的高度
       touchSpotImgWidth: '20px', // 刮刮片的宽度,单位px
       touchSpotImgHeight: '20px', // 刮刮片的宽度,单位px
       touchSpotPosition: '0.5 0.5' // 刮片触点位置
@@ -76,6 +78,7 @@ export default {
           this.prizeImg = guaguakaInfo.prizeImg ? guaguakaInfo.prizeImg : this.prizeImg
           this.touchSpotShow = guaguakaInfo.touchSpotShow ? guaguakaInfo.touchSpotShow : this.touchSpotShow
           this.visibleArea = guaguakaInfo.visibleArea ? guaguakaInfo.visibleArea : this.visibleArea
+          this.curtainHide = !guaguakaInfo.curtainHide ? false : true
           this.touchSpotSize = guaguakaInfo.touchSpotSize ? guaguakaInfo.touchSpotSize : this.touchSpotSize
           this.guaguaka_width = guaguakaInfo.width ? guaguakaInfo.width : this.guaguaka_width
           this.guaguaka_height = guaguakaInfo.height ? guaguakaInfo.height : this.guaguaka_height
@@ -144,24 +147,11 @@ export default {
       this.ctx.globalCompositeOperation = 'destination-out'
       this.isSuccess = false
       this.scratchPrizeShow = true
+      this.canvasShow = true
       this.$emit('hideLoading', this.id)
     },
     canvasEventUp(e) {
       e.preventDefault()
-      // 判断刮刮卡是否已经刮开率是否超过了设置的刮开率，如果是的话就不在不返回成功的
-      if (!this.isSuccess) {
-        var a = this.ctx.getImageData(0, 0, this.prizeCurtain.width, this.prizeCurtain.height)
-        var j = 0
-        for (var i = 3; i < a.data.length; i += 4) {
-          if (a.data[i] === 0)j++
-        }
-        // 当被刮开的区域等于刮开率时，则可以开始处理结果
-        if (j * 100 / this.visibleArea >= a.data.length / 4) {
-          // alert('刮卡成功')
-          this.isSuccess = true
-          this.$emit('success', this.id)
-        }
-      }
       this.ismousedown = false
       this.dotPosition = null
     },
@@ -207,6 +197,25 @@ export default {
           this.dotPosition = {
             x: x,
             y: y
+          }
+          // 判断刮刮卡是否已经刮开率是否超过了设置的刮开率，如果是的话就不在不返回成功的
+          if (!this.isSuccess) {
+            var a = this.ctx.getImageData(0, 0, this.prizeCurtain.width, this.prizeCurtain.height)
+            var j = 0
+            for (var i = 3; i < a.data.length; i += 4) {
+              if (a.data[i] === 0)j++
+            }
+            this.$emit('getVisibleArea', {id: this.id, visibleArea: (parseInt(j/(a.data.length / 4)*100))})
+            // 当被刮开的区域等于刮开率时，则可以开始处理结果
+            if (j * 100 / this.visibleArea >= a.data.length / 4) {
+              if (this.curtainHide) {
+                this.canvasShow = false
+              }
+              this.isSuccess = true
+              this.$emit('success', this.id)
+              this.ismousedown = false
+              this.dotPosition = null
+            }
           }
           // this.ctx.arc(x, y, this.touchSpotSize * 0.2, 0, Math.PI * 2)
           // this.ctx.fill()
@@ -270,7 +279,8 @@ export default {
           }
         }, 300)
       }
-    }
+    },
+
   }
 }
 </script>
